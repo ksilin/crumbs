@@ -30,35 +30,46 @@ end
 
 describe 'new API' do
 
+  traces = []
+  let(:tracer) { tracer = TracePoint.new do |tp|
+    traces << "#{tp.event}, #{File.basename(tp.path)}, #{tp.lineno}, #{tp.defined_class}, #{tp.method_id}"
+  end
+  }
+
+  # that's pretty unimpressive
   it 'should capture everything' do
     traces = []
-    tracer = TracePoint.new do |tp|
-      traces << "#{tp.event}, #{File.basename(tp.path)}, #{tp.lineno}, #{tp.defined_class}, #{tp.method_id}"
-    end
 
     tracer.enable
-    expect(traces).to have_at_least(100).items
     def money_on_the_table; 'bam'; end
     tracer.disable
 
-    gr = traces.grep /singleton_method_added/
+    traced = traces.grep /singleton_method_added/
     # 1 item for a c_call, another 1 for the c_return
-    expect(gr).to have(2).item
+    expect(traced).to have(2).items
   end
 
+
+  # ah, interesting
   it 'should be switchable' do
     traces = []
-    tracer = TracePoint.new do |tp|
-      traces << "#{tp.event}, #{File.basename(tp.path)}, #{tp.lineno}, #{tp.defined_class}, #{tp.method_id}"
-    end
 
     tracer.enable
-    expect(traces).to have_at_least(100).items
+    10.times{ p 'Nananananananana Leader!'}
     tracer.disable
 
-    def money_on_the_table; 'bam'; end
+    def gimme; 'bam'; end
 
     expect(traces.grep /singleton_method_added/).to be_empty
+  end
+
+  it 'can be passed a block to work with' do
+    traces = []
+    tracer.enable do
+      tracer.enable
+    end
+    traced = traces.grep /singleton_method_added/
+    expect(traced).to have(2).items
   end
 
 end
