@@ -20,7 +20,7 @@ describe 'trying array conjunction by splicing' do
     p "a1[0, 1] #{a1[0, 1]}" # => 1
     p "a1[1, 0] #{a1[1, 0]}" # => []
 
-    expect{a1[0, 1, 2]}.to raise_error
+    expect { a1[0, 1, 2] }.to raise_error
     p "a1: #{a1}"
 
     a1.insert(a1.length, *a2)

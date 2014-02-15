@@ -72,5 +72,18 @@ describe 'new API' do
     expect(traced).to have(2).items
   end
 
+  #trace = TracePoint.new(:raise) do |t|
+  #  puts "WOOOOO!!"
+  #end
+  #
+  #require "file_that_doesnt_exist"
+  #WOOOOO!!
+  #       [36, :raise, #<LoadError: cannot load such file -- file_that_doesnt_exist>]
+
+  #trace = TracePoint.new(:return) do |t|
+  #  puts "#{t.method_id} has just done its thing."
+  #end
+  #trace.enable #=>
+
 end
 
