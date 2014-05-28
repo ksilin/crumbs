@@ -2,7 +2,7 @@
 # downside - the original method has to be already defined
 # when the macro method is called
 
-module WhosMyCaller
+module Aliaser
 
   def log_caller(meth)
 
@@ -18,7 +18,7 @@ end
 
 
 class Snobbish
-  extend WhosMyCaller
+  extend Aliaser
 
   def avoid
     puts "avoid: I dont remember"
@@ -34,7 +34,7 @@ Snobbish.new.avoid
 # downside - the original method has to be already defined
 # when the module is included
 
-module MyCaller
+module RebindAll
 
   def self.included(base)
     methods = base.instance_methods(false) # we don't wrap private methods
@@ -61,7 +61,7 @@ class UnaskedFor
 
   # I have to include the module after defining the methods.
   # This sucks, how do I circumvent it?
-  include MyCaller
+  include RebindAll
 end
 
 UnaskedFor.new.unwrapped
@@ -72,7 +72,7 @@ UnaskedFor.new.unwrapped
 # downside - the original method has to be already defined
 # when the macro method is called
 
-module SomeCaller
+module RebindMacro
 
   def log_it(method)
     puts "logging #{method} from now on"
@@ -85,7 +85,7 @@ module SomeCaller
 end
 
 class AskedFor
-  extend SomeCaller
+  extend RebindMacro
 
   def unwrapped
     puts "unwrapped called"
@@ -128,7 +128,7 @@ end
 # looks into the prepended module, it uses `respond_to` and `method_missing`
 # it looks like it doesnt
 
-module PreLogger
+module NamedPrepender
 
   def respond_to?(m)
     true
@@ -140,10 +140,10 @@ module PreLogger
 end
 
 class Prepped
-  prepend PreLogger
+  prepend NamedPrepender
 
   def some_method
-    puts "some method"
+    puts 'some method'
   end
 
 end
@@ -165,7 +165,7 @@ end
 class MyClass
 
   def bark
-    puts "woof woof"
+    puts 'woof woof'
   end
 end
 
@@ -174,6 +174,8 @@ MyClass.new.send(:bark)
 
 
 # a module that rewrites the class by a derived one
+# this does nothing to solve our task, but is funny
+# TODO: redefine method on the derived class
 
 module Deriver
 
@@ -181,7 +183,7 @@ module Deriver
     puts "base #{base} class: #{base.class}"
     new_class = Class.new(base) do
       def this_wasnt_there_before
-        puts "I can be called now"
+        puts 'I can be called now'
       end
     end
     puts "removing the original class definition of #{base.to_s}"
@@ -196,9 +198,8 @@ class DD
   include Deriver
 
   def been_there
-    puts "I have been there before"
+    puts 'I have been there before'
   end
-
 end
 
 a = DD.new
@@ -208,8 +209,7 @@ a.been_there
 # a diversion - wrapping method is easy, if you are doing it for a single class
 # and you know the names of the methods - just use prepend
 
-module WhosMyCaller
-
+module Aliaser
   def welcome
     puts "welcome called by #{caller}"
     super
@@ -217,13 +217,13 @@ module WhosMyCaller
 end
 
 class Friendly
-  prepend WhosMyCaller
+  prepend Aliaser
 
   def welcome
     puts "Hi"
   end
 end
-#
+
 Friendly.new.welcome
 
 # The only method allowing wrapping a method before the method itself has been declared
@@ -234,27 +234,82 @@ Friendly.new.welcome
 
 module Prepender
 
-  def wrap_me(meth)
-    m = Module.new do
-      define_method(meth) do |*args|
-        puts "the original method '#{meth}' is about to be called"
-        super *args
+  def wrap_me(*method_names)
+    method_names.each do |m|
+      proxy = Module.new do
+        define_method(m) do |*args|
+          puts "the method '#{m}' is about to be called"
+          super *args
+        end
       end
+      self.prepend proxy
     end
-    self.prepend m
+  end
+
+  def wrap_me_once(*method_names)
+    method_names.each do |m|
+      proxy.send(:define_method, m) { |*args|
+        puts "the method '#{m}' is about to be called"
+        super *args
+      }
+    end
+  end
+
+  def proxy
+    if @proxy.nil?
+      @proxy = Module.new
+      self.prepend @proxy
+    end
+    @proxy
   end
 
 end
 
-class Hiding
+class Dogbert
   extend Prepender
 
-  wrap_me :bark
+  wrap_me_once :bark, :deny
 
   def bark
-    puts "woof woof!"
+    puts 'Bah!'
   end
 
+  def deny
+    puts 'You have no proof!'
+  end
 end
 
-Hiding.new.bark
+Dogbert.new.bark
+Dogbert.new.deny
+
+# TODO: use `method_added`, the method definition callback
+# to redefine the method on-the-fly
+
+# Watch out - the redefinition may themselves trigger the callback.
+
+module Readder
+
+def self.extended(child)
+  sc = child.singleton_class
+  puts "singleton_class of child: #{sc}"
+  sc.send(:define_singleton_method, :method_added) { |method_name| puts "defining #{method_name}" }
+end
+
+
+  # def self.method_added(method_name) will not be called,
+  # we need to define it on the eigenclass of the including class
+  def self.method_added(method_name)
+    puts "Readder: I now have a method called #{method_name}"
+  end
+end
+
+class Ratbert
+  extend Readder
+
+  def chew
+    puts 'om nom nom'
+  end
+end
+
+Ratbert.new.chew
+# Ratbert.send(:method_added, :wrong)
