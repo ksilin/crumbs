@@ -283,23 +283,53 @@ Dogbert.new.bark
 Dogbert.new.deny
 
 # TODO: use `method_added`, the method definition callback
-# to redefine the method on-the-fly
+# to wrap the method on-the-fly
 
 # Watch out - the redefinition may themselves trigger the callback.
 
 module Readder
 
-def self.extended(child)
-  sc = child.singleton_class
-  puts "singleton_class of child: #{sc}"
-  sc.send(:define_singleton_method, :method_added) { |method_name| puts "defining #{method_name}" }
-end
+  def wrapped_names
+    @wrapped_names ||= []
+  end
+
+  def self.extended(child)
+
+    child.send(:define_singleton_method, :method_added) { |method_name|
+      puts "wrapping #{method_name}"
 
 
-  # def self.method_added(method_name) will not be called,
-  # we need to define it on the eigenclass of the including class
-  def self.method_added(method_name)
-    puts "Readder: I now have a method called #{method_name}"
+
+      # TODO: it seems wrong to cache method names since can only wrap the first definition
+      # but how do I prevent redefining the method until the stack overflows
+      if wrapped_names.include?(method_name)
+        puts "method #{method_name} is already wrapped"
+        wrapped_names.delete(method_name)
+      else
+        wrapped_names << method_name
+
+        proxy.send(:define_method, method_name) { |*args|
+          puts "the method '#{method_name}' is about to be called"
+          super *args
+        }
+
+        # original_method = instance_method(method_name)
+        # puts "method: #{original_method}"
+        # define_method(method_name) do |*args, &block|
+        #   puts "method #{method_name} was called by #{caller}"
+        #   original_method.bind(self).call(*args, &block)
+        # end
+      end
+      # end
+    }
+  end
+
+  def proxy
+    if @proxy.nil?
+      @proxy = Module.new
+      self.prepend @proxy
+    end
+    @proxy
   end
 end
 
@@ -310,6 +340,11 @@ class Ratbert
     puts 'om nom nom'
   end
 end
+
+puts "puts Ratbert.methods: #{Ratbert.methods.grep(/added/)}"
+puts "puts Ratbert.singleton_methods: #{Ratbert.singleton_methods}"
+puts "puts Ratbert.class.singleton_methods: #{Ratbert.class.singleton_methods}"
+puts "puts Ratbert.class.methods: #{Ratbert.class.methods.grep(/added/)}"
 
 Ratbert.new.chew
 # Ratbert.send(:method_added, :wrong)
