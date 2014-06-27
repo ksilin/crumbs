@@ -348,3 +348,6 @@ puts "puts Ratbert.class.methods: #{Ratbert.class.methods.grep(/added/)}"
 
 Ratbert.new.chew
 # Ratbert.send(:method_added, :wrong)
+
+# TODO: and now wrap methods without modifying the wrapped classes
+# traverse object space for classes and methods by name and wrap them
