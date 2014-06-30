@@ -1,17 +1,17 @@
 module Wrapper
 
   def initialize
-    puts "We were planning on wrapping #{methods_to_wrap}"
-    puts "and ended up wrapping #{methods_wrapped}"
+    $stdout.puts "We were planning on wrapping #{methods_to_wrap}"
+    $stdout.puts "and ended up wrapping #{methods_wrapped}"
 
     if wrapped_too_much.any?
-      puts "wait, we have wrapped too much #{wrapped_too_much}"
+      $stdout.puts "wait, we have wrapped too much #{wrapped_too_much}"
     end
     if remaining_unwrapped.any?
-      puts "wait, we wanted wrap some more methods first: #{remaining_unwrapped}"
+      $stdout.puts "wait, we wanted to wrap some more methods: #{remaining_unwrapped}"
     end
     if (wrapped_too_much + remaining_unwrapped).empty?
-      puts "so we're done now"
+      $stdout.puts "so we're done now"
     end
   end
 
@@ -35,27 +35,31 @@ module Wrapper
   def self.included base
     base.extend MacroMethodAndInstanceVars
 
+    # the 1.8 - 1.9 variant
     def base.wrap_method method_name
       methods_wrapped << method_name
       original_method = instance_method(method_name)
+      # TODO: having to call define_method here is a PITA
+      # it triggers the method_added hook once again
+      # so I have to store names of methods that are already wrapped
       define_method(method_name) do |*args, &block|
-        # puts "method #{method_name} was called by #{caller}"
-        puts 'wrapper payload goes here'
+        # $stdout.puts "method #{method_name} was called by #{caller}"
+        $stdout.puts 'wrapper payload goes here'
         original_method.bind(self).call(*args, &block)
       end
-      puts "wrapped #{methods_wrapped}"
+      $stdout.puts "wrapped #{methods_wrapped}"
     end
 
     def base.method_added method_name
-      puts "method #{method_name} is being added to #{self}"
+      $stdout.puts "method #{method_name} is being added to #{self}"
 
       if !methods_to_wrap.include? method_name
-        puts 'i should not be wrapping this'
+        $stdout.puts 'i should not be wrapping this'
         return
       end
 
       if methods_wrapped.include? method_name
-        puts 'it should be wrapped already, skipping'
+        $stdout.puts 'it should be wrapped already, skipping'
         return
       end
 
@@ -67,7 +71,8 @@ module Wrapper
 
     def wrap_me(*method_names)
       methods_to_wrap.push *method_names
-
+      # behavior is probably broken between 1.8 and 1.9
+      # instance_methods returns strings in 1.8 and symbols in 1.9+
       (method_names & instance_methods).each do |method_name|
         wrap_method method_name
       end
@@ -86,44 +91,44 @@ module Wrapper
   end
 end
 
-class Dogbert
-  include Wrapper
+# class Dogbert
+#   include Wrapper
+#
+#   wrap_me :bark, :deny, :something_else
+#
+#   def bark
+#     $stdout.puts 'Bah!'
+#   end
+#
+#   def deny
+#     $stdout.puts 'You have no proof!'
+#   end
+# end
+#
+# Dogbert.new.bark
+# Dogbert.new.deny
 
-  wrap_me :bark, :deny, :something_else
-
-  def bark
-    puts 'Bah!'
-  end
-
-  def deny
-    puts 'You have no proof!'
-  end
-end
-
-Dogbert.new.bark
-Dogbert.new.deny
-
-class Ratbert
-  include Wrapper
-
-  def squeak
-    puts 'Peep!'
-  end
-
-  def rat_out
-    puts 'If was him!'
-  end
-
-  wrap_me :squeak, :rat_out
-
-end
-
-Ratbert.new.squeak
-Ratbert.new.rat_out
+# class Ratbert
+#   include Wrapper
+#
+#   def squeak
+#     $stdout.puts 'Peep!'
+#   end
+#
+#   def rat_out
+#     $stdout.puts 'If was him!'
+#   end
+#
+#   wrap_me :squeak, :rat_out
+#
+# end
+#
+# Ratbert.new.squeak
+# Ratbert.new.rat_out
 
 # r = /added/
-# puts "puts Dogbert.methods #{r}: #{Dogbert.methods.grep(r)}"
-# puts "puts Dogbert.instance_methods #{r}: #{Dogbert.instance_methods.grep(r)}"
-# puts "puts Dogbert.singleton_methods: #{Dogbert.singleton_methods}"
-# puts "puts Dogbert.class.singleton_methods: #{Dogbert.class.singleton_methods}"
-# puts "puts Dogbert.class.methods #{r}: #{Dogbert.class.methods.grep(r)}"
+# $stdout.puts "$stdout.puts Dogbert.methods #{r}: #{Dogbert.methods.grep(r)}"
+# $stdout.puts "$stdout.puts Dogbert.instance_methods #{r}: #{Dogbert.instance_methods.grep(r)}"
+# $stdout.puts "$stdout.puts Dogbert.singleton_methods: #{Dogbert.singleton_methods}"
+# $stdout.puts "$stdout.puts Dogbert.class.singleton_methods: #{Dogbert.class.singleton_methods}"
+# $stdout.puts "$stdout.puts Dogbert.class.methods #{r}: #{Dogbert.class.methods.grep(r)}"
