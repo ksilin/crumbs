@@ -4,7 +4,15 @@ require_relative 'match_stdout'
 # the way the wrapper works now, the wrapper payload has to be hardcoded
 # TODO: find a way to pass a block/proc/lambda to be executed before/after the original method
 
+class Wrapped
+  include Wrapper
 
+  def yawn
+    'wuhaa'
+  end
+
+  wrap_me :yawn
+end
 
 describe Wrapper do
 
@@ -22,20 +30,19 @@ describe Wrapper do
 
   it 'should wrap already defined methods' do
 
-    class Wrapped
-      include Wrapper
-
-      def yawn
-        'wuhaa'
-      end
-
-      wrap_me :yawn
-    end
-
     expect {
       wrapped = Wrapped.new
       wrapped.yawn
-    }.to match_stdout /wrapper payload goes here/#/we're done now/
+    }.to match_stdout /wrapper payload goes here/ #/we're done now/
+  end
+
+  it 'should somehow work with message expectations' do
+
+    # expect(Object.any_instance).to receive :yawn
+    # expect(Wrapped.any_instance).to receive :yawn
+    w = Wrapped.new
+    expect(w).to receive :yawn
+    w.yawn
   end
 
 end
